@@ -10,9 +10,33 @@ function! s:call(name, ...) abort
         \)
 endfunction
 
+function! s:findroot(path, patterns) abort
+  let l:path = a:path
+  while 1
+    for l:pattern in a:patterns
+      let l:current = l:path . '/' . l:pattern
+      if stridx(l:pattern, '*') != -1 && !empty(glob(l:current, 1))
+        return l:path
+      elseif l:pattern =~# '/$'
+        if isdirectory(l:current)
+          return l:path
+        endif
+      elseif filereadable(l:current)
+        return l:path
+      endif
+    endfor
+    let l:next = fnamemodify(l:path, ':h')
+    if l:next == l:path || (has('win32') && l:next =~# '^//[^/]\+$')
+      break
+    endif
+    let l:path = l:next
+  endwhile
+  return ''
+endfunction
+
 function! s:map_project_top(helper, reveal) abort
   let root = a:helper.sync.get_root_node()
-  let path = finddir('.git/..', root._path . ';')
+  let path = s:findroot(root._path, g:findroot_patterns)
   if empty(path)
     throw 'No project top directory found'
   endif
